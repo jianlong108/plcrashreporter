@@ -54,6 +54,7 @@ extern "C" {
  * return information that is incorrect. This may still be useful in the case where DWARF data is unavailable
  * for a given build; in that case, it can provide function and method names (though not line numbers) for a
  * crash report that may otherwise be unusable.
+ * 这个与PLCrashReporterSymbolicationStrategy一一对应
  */
 typedef enum {
     /** No symbolication. */

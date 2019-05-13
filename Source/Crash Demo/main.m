@@ -47,7 +47,9 @@
 @end
 #endif /* TARGET_OS_IPHONE */
 
-/* A custom post-crash callback */
+/* A custom post-crash callback
+PLCrashReporter内部有一个静态全局变量用来保存该callback函数指针，当崩溃发生时PLC会收集崩溃日志，收集完成后会来回调这个callback，这个是PLC提供给外部的额外回调，你可以在这里做一些类似统计打点或者数据落地的工作
+ */
 static void post_crash_callback (siginfo_t *info, ucontext_t *uap, void *context) {
     // this is not async-safe, but this is a test implementation
     NSLog(@"post crash callback: signo=%d, uap=%p, context=%p", info->si_signo, uap, context);
@@ -171,7 +173,7 @@ int main (int argc, char *argv[]) {
     };
     [reporter setCrashCallbacks: &cb];
 
-    /* Enable the crash reporter */
+    /* Enable the crash reporter 开启崩溃信号拦截和崩溃日志收集服务*/
     if (![reporter enableCrashReporterAndReturnError: &error]) {
         NSLog(@"Could not enable crash reporter: %@", error);
     }

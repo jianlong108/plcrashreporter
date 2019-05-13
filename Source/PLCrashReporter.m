@@ -111,7 +111,9 @@ typedef struct signal_handler_ctx {
 
 #if PLCRASH_FEATURE_MACH_EXCEPTIONS
     /* Previously registered Mach exception ports, if any. Will be left uninitialized if PLCrashReporterSignalHandlerTypeMach
-     * is not enabled. */
+     * is not enabled.
+     如果定义的是mach的异常，对应的端口变量
+     */
     plcrash_mach_exception_port_set_t port_set;
 #endif /* PLCRASH_FEATURE_MACH_EXCEPTIONS */
 } plcrashreporter_handler_ctx_t;
@@ -120,9 +122,11 @@ typedef struct signal_handler_ctx {
  * @internal
  * 
  * Signal handler context (singleton)
+ 全局结构体变量
  */
 static plcrashreporter_handler_ctx_t signal_handler_context;
 
+static NSUncaughtExceptionHandler *_perviousExceptionHandler;
 
 /**
  * @internal
@@ -332,7 +336,8 @@ static kern_return_t mach_exception_callback (task_t task, thread_t thread, exce
 static void uncaught_exception_handler (NSException *exception) {
     /* Set the uncaught exception */
     plcrash_log_writer_set_exception(&signal_handler_context.writer, exception);
-
+    //调用之前注册的handler
+    _perviousExceptionHandler(exception);
     /* Synchronously trigger the crash handler */
     abort();
 }
@@ -519,6 +524,7 @@ static PLCrashReporter *sharedReporter = nil;
      * well as our legacy approach of deregistering any signal handlers upon the first signal. Once PLCrashUncaughtExceptionHandler is
      * implemented, and we support double-fault handling without resetting the signal handlers, we can support chaining of multiple
      * crash reporters. */
+    //单个APP进程仅有一份PLCrashReporter的实例存在
     {
         static BOOL enforceOne = NO;
         pthread_mutex_t enforceOneLock = PTHREAD_MUTEX_INITIALIZER;
@@ -538,7 +544,7 @@ static PLCrashReporter *sharedReporter = nil;
     if (_enabled)
         [NSException raise: PLCrashReporterException format: @"The crash reporter has alread been enabled"];
 
-    /* Create the directory tree */
+    /* Create the directory tree 创建文件目录，当后面收集到崩溃日志时要立马写文件*/
     if (![self populateCrashReportDirectoryAndReturnError: outError])
         return NO;
 
@@ -547,24 +553,32 @@ static PLCrashReporter *sharedReporter = nil;
      */
 
 
-    /* The pre-crash page-guarded allocator */
+    /* The pre-crash page-guarded allocator
+     创建一个崩溃之前的page-guarded allocator，我自己理解是崩溃时用来保护内存的page避免崩溃时的信息丢失。
+     */
     err = plcrash_async_allocator_create(&signal_handler_context._precrash_allocator, PAGE_SIZE); // NOTE: would leak if this were not a singleton struct
     if (err != PLCRASH_ESUCCESS) {
         plcrash_populate_error(outError, PLCRashReporterErrorInsufficientMemory, @"An unexpected error occured allocating our page-guarded allocator", nil);
         return NO;
     }
 
-    /* Saved path to the output file */
+    /* Saved path to the output file
+       把文件目录赋值给该静态的结构体的一个内部文件指针
+     */
     signal_handler_context.path = strdup([[self crashReportPath] UTF8String]); // NOTE: would leak if this were not a singleton struct
     
-    /* The dynamic loader reference required for image list reading. */
+    /* The dynamic loader reference required for image list reading.
+     创建dynamic loader
+     */
     err = plcrash_nasync_dynloader_new(&signal_handler_context.dynamic_loader, signal_handler_context._precrash_allocator, mach_task_self()); // NOTE: would leak if this were not a singleton struct
     if (err != PLCRASH_ESUCCESS) {
         plcrash_populate_error(outError, PLCRashReporterErrorNotFound, @"Failed fetch the dyld image info for the current process", nil);
         return NO;
     }
     
-    /* Crash log writer instance */
+    /* Crash log writer instance
+创建变量writer。这个是当崩溃时收集到线程堆栈信息后用来写文件用的，当然还要传入另一个符号化策略的参数PLCrashReporterSymbolicationStrategy，有三个值，None，Table或者Objc，或者Table和Objc，一般选None比较合适，因为你崩溃的时候去做符号化，一来耗时比较长，二来有些APP在Xcode的编译选项里设置了strip symbol的话（见另一篇安装包size优化的文章），这里是拿不到符号的，另外就是网上有人反应，这里的符号化不够准确，没有代码行数，另外也没有系统动态库比如UIKit的符号。所以直接选None就好了，崩溃日志收集到之后，再用符号表统一进行符号化即可。
+     */
     assert(_applicationIdentifier != nil);
     assert(_applicationVersion != nil);
     plcrash_log_writer_init(&signal_handler_context.writer, _applicationIdentifier, _applicationVersion, _applicationMarketingVersion, [self mapToAsyncSymbolicationStrategy: _config.symbolicationStrategy], false);
@@ -572,10 +586,11 @@ static PLCrashReporter *sharedReporter = nil;
     
 
     /*
-     * Enable the signal handler
+     * Enable the signal handler 注册c和c++的异常处理
      */
     switch (_config.signalHandlerType) {
-        case PLCrashReporterSignalHandlerTypeBSD:
+        case PLCrashReporterSignalHandlerTypeBSD://BSD层
+            //对信号数组进行遍历，分别给对应的异常信号注册回调和context。context是上方提到的全局静态变量（单例）
             for (size_t i = 0; i < monitored_signals_count; i++) {
                 if (![[PLCrashSignalHandler sharedHandler] registerHandlerForSignal: monitored_signals[i] callback: &signal_handler_callback context: &signal_handler_context error: outError])
                     return NO;
@@ -583,15 +598,20 @@ static PLCrashReporter *sharedReporter = nil;
             break;
 
 #if PLCRASH_FEATURE_MACH_EXCEPTIONS
-        case PLCrashReporterSignalHandlerTypeMach: {
+        case PLCrashReporterSignalHandlerTypeMach: {//Mach层
             /* We still need to use signal handlers to catch SIGABRT in-process. The kernel sends an EXC_CRASH mach exception
              * to denote SIGABRT termination. In that case, catching the Mach exception in-process leads to process deadlock
              * in an uninterruptable wait. Thus, we fall back on BSD signal handlers for SIGABRT, and do not register for
-             * EXC_CRASH. */
+             * EXC_CRASH.
+             我们仍然需要使用信号处理程序来捕获进程中的SIGABRT。内核发送一个EXC_CRASH mach异常来表示SIGABRT终止。在这种情况下，捕捉进程内的Mach异常会导致进程死锁，导致不可中断的等待。因此，我们回到SIGABRT的BSD信号处理程序，而不注册EXC_CRASH
+             */
             if (![[PLCrashSignalHandler sharedHandler] registerHandlerForSignal: SIGABRT callback: &signal_handler_callback context: &signal_handler_context error: outError])
                 return NO;
             
-            /* Enable the server. */
+            /* Enable the server.
+             
+             
+             */
             _machServer = [self enableMachExceptionServerWithPreviousPortSet: &_previousMachPorts
                                                                     callback: &mach_exception_callback
                                                                      context: &signal_handler_context
@@ -626,9 +646,10 @@ static PLCrashReporter *sharedReporter = nil;
 #endif /* PLCRASH_FEATURE_MACH_EXCEPTIONS */
     }
 
-    /* Set the uncaught exception handler */
+    /* Set the uncaught exception handler 注册oc的异常处理handler函数*/
+    _perviousExceptionHandler = NSGetUncaughtExceptionHandler();
     NSSetUncaughtExceptionHandler(&uncaught_exception_handler);
-
+    
     /* Success */
     _enabled = YES;
     return YES;
@@ -987,7 +1008,7 @@ cleanup:
         exc_mask |= EXC_MASK_GUARD; /* Process accessed a guarded file descriptor. See also: https://devforums.apple.com/message/713907#713907 */
 #endif
     
-    /* Create the server */
+    /* Create the server 创建mach sever*/
     NSError *osError;
     PLCrashMachExceptionServer *server = [[[PLCrashMachExceptionServer alloc] initWithCallBack: callback context: context error: &osError] autorelease];
     if (server == nil) {
@@ -995,7 +1016,7 @@ cleanup:
         return nil;
     }
     
-    /* Allocate the port */
+    /* Allocate the port 指定端口*/
     PLCrashMachExceptionPort *port = [server exceptionPortWithMask: exc_mask error: &osError];
     if (port == nil) {
         plcrash_populate_error(outError, PLCrashReporterErrorOperatingSystem, @"Failed to instantiate the Mach exception port.", osError);
@@ -1032,7 +1053,7 @@ cleanup:
 /**
  * Map the configuration defined @a strategy to the backing plcrash_async_symbol_strategy_t representation.
  *
- * @param strategy The strategy value to map.
+ * @param strategy The strategy value to map.转换策略。
  */
 - (plcrash_async_symbol_strategy_t) mapToAsyncSymbolicationStrategy: (PLCrashReporterSymbolicationStrategy) strategy {
     plcrash_async_symbol_strategy_t result = PLCRASH_ASYNC_SYMBOL_STRATEGY_NONE;

@@ -186,10 +186,10 @@ static bool internal_callback_iterator (int signo, siginfo_t *info, ucontext_t *
 
 /** 
  * @internal
- *
+ * 信号处理函数。当崩溃时，最开始的回调入口就是这个函数
  * The signal handler function used by PLCrashSignalHandler. This function should not be called or referenced directly,
  * but is exposed to allow simulating signal handling behavior from unit tests.
- *
+ * 除非是单元测试，否则不要手动调用这个函数
  * @param signo The signal number.
  * @param info The signal information.
  * @param uapVoid A ucontext_t pointer argument.
@@ -197,6 +197,7 @@ static bool internal_callback_iterator (int signo, siginfo_t *info, ucontext_t *
 void plcrash_signal_handler (int signo, siginfo_t *info, void *uapVoid) {
     /* Start iteration; we currently re-raise the signal if not handled by callbacks; this should be revisited
      * in the future, as the signal may not be raised on the expected thread.
+     开始迭代;如果不通过回调处理，则当前重新引发信号;这应该在将来重新访问，因为信号可能不会在预期的线程上发出。
      */
     if (!internal_callback_iterator(signo, info, (ucontext_t *) uapVoid, NULL))
         raise(signo);
@@ -318,11 +319,13 @@ static PLCrashSignalHandler *sharedHandler;
          */
         if (!singleShotInitialization) {
             /*
+             *  注册我们的信号栈。现在，我们在调用线程上注册我们的信号堆栈;将来，这可能会转移到一个公开的实例方法中，以便允许在任何线程上注册自定义信号堆栈。目前，这支持在启用信号处理程序的线程上注册信号堆栈的遗留行为。
              * Register our signal stack. Right now, we register our signal stack on the calling thread; this may,
              * in the future, be moved to an exposed instance method, as to allow registering a custom signal stack on any thread.
              *
              * For now, this supports the legacy behavior of registering a signal stack on the thread on
              * which the signal handlers are enabled.
+            http://www.groad.net/bbs/forum.php?mod=viewthread&tid=7336
              */
             if (sigaltstack(&_sigstk, 0) < 0) {
                 /* This should only fail if we supply invalid arguments to sigaltstack() */
@@ -337,6 +340,7 @@ static PLCrashSignalHandler *sharedHandler;
                 .callback = previous_action_callback,
                 .context = NULL
             };
+            //而注册函数内部的append函数的操作，其结构体的context是NULL，然后callback是 previous_action_callback，而不是传进来的callback，其是把一个新的结构体，插入到callbacks的List的最后面
             shared_handler_context.callbacks.nasync_append(sa);
         }
         
@@ -362,19 +366,24 @@ static PLCrashSignalHandler *sharedHandler;
             memset(&sa, 0, sizeof(sa));
             sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
             sigemptyset(&sa.sa_mask);
+            //当信号过来h时，会回调赋值给sa变量的sa_sigaction
             sa.sa_sigaction = &plcrash_signal_handler;
             
-            /* Set new sigaction */
+            /* Set new sigaction 注册信号使用的函数sigaction*/
             if (sigaction(signo, &sa, &sa_prev) != 0) {
                 int err = errno;
                 plcrash_populate_posix_error(outError, err, @"Failed to register signal handler");
                 return NO;
             }
-            
+            /*
+             WARNING: 但是如果该信号之前被别的SDK注册过，PLC会保存下来，之后当异常信号发生时再统一进行回调，这里是把之前别的SDK注册该信号的handler添加到了shared_handler_context.previous_actions的List里：
+             
+             */
             /* Save the previous action. Note that there's an inescapable race condition here, such that
              * we may not call the previous signal handler if signal occurs prior to our saving
              * the caller's handler.
-             *
+             * 保存前面的操作。注意，这里有一个不可避免的竞态条件，如果信号发生在保存调用方的处理程序之前，则不能调用前面的信号处理程序
+             TODO: 研究使用异步安全锁定来避免这种情况。请参见:PLCrashReporter类支持Mach异常。
              * TODO - Investigate use of async-safe locking to avoid this condition. See also:
              * The PLCrashReporter class's enabling of Mach exceptions.
              */
@@ -414,11 +423,14 @@ static PLCrashSignalHandler *sharedHandler;
     if (![self registerHandlerWithSignal: signo error: outError])
         return NO;
     
-    /* Add the new callback to the shared state list. */
+    /* Add the new callback to the shared state list.
+     回调函数被保存到一个全局静态变量shared_handler_context.callbacks中
+     */
     plcrash_signal_user_callback reg = {
         .callback = callback,
         .context = context
     };
+    //prepend函数是把传进来的callback和context封装的结构体插入到了callbacks的List的最前面的位置。
     shared_handler_context.callbacks.nasync_prepend(reg);
     
     return YES;
