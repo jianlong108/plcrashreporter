@@ -54,7 +54,16 @@ bool PLCrashSignalHandlerForward (PLCrashSignalHandlerCallback *next, int signal
 
 @interface PLCrashSignalHandler : NSObject {
 @private
-    /** Signal stack */
+    /*
+     _STRUCT_SIGALTSTACK
+     {
+        void            *ss_sp;//栈顶指针
+        __darwin_size_t ss_size;//栈空间大小
+        int             ss_flags;//栈空间标志位 SA_DISABLE and/or SA_ONSTACK
+        };
+     
+     */
+    /** Signal stack 信号栈*/
     stack_t _sigstk;
 }
 

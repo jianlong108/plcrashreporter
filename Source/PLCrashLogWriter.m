@@ -1205,6 +1205,7 @@ static size_t plcrash_writer_write_report_info (plcrash_async_file_t *file, plcr
  * context-generating trampoline such as plcrash_log_writer_write_curthread(). If NULL, a thread dump for the current
  * thread will not be written. If @a crashed_thread is the current thread (as returned by mach_thread_self()), this
  * value <em>must</em> be provided.
+ * 函数内部会去读image_list，获取所有线程，暂停除了当前线程之外的所有线程，
  */
 plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
                                           thread_t crashed_thread,

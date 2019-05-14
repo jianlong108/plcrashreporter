@@ -26,6 +26,21 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/*
+ https://man.openbsd.org/sigaction.2
+ 系统定义了一组可以传递给进程的信号。信号传递类似于硬件中断的发生:信号通常被阻止，不再发生进一步的中断，保存当前进程上下文，并构建一个新的进程上下文。进程可以指定传递信号的处理程序，也可以指定忽略信号。进程还可以指定当信号发生时系统将采取默认操作。一个信号也可能被阻塞，在这种情况下，它的传输被延迟到解除阻塞之后。交付时要采取的行动是在交付时确定的。通常，信号处理程序在进程的当前堆栈上执行。这可能会在每个处理程序的基础上进行更改，以便在一个特殊的信号堆栈上接收信号。
+ 信号例程通常使用导致其调用被阻塞的信号执行，但可能还会发生其他信号。全局信号掩码定义当前从传递到进程被阻塞的信号集。进程的信号掩码由其父进程的信号掩码初始化(通常为空)。它可以通过调用sigprocmask(2)进行更改，或者在向进程传递信号时进行更改。
+ 
+ 当进程的信号条件出现时，将该信号添加到进程等待的一组信号中。如果信号当前没有被进程阻塞，那么它将被传递到进程。信号可以在进程进入操作系统的任何时候发送(例如，在系统调用、页面错误或陷阱或时钟中断期间)。如果同时准备交付多个信号，则首先交付可能由陷阱引起的任何信号。额外的信号可能同时被处理，每个信号似乎都在它们的第一个指令之前中断前一个信号的处理程序。sigpending(2)函数返回一组挂起的信号。当捕获的信号被传递时，将保存进程的当前状态，计算一个新的信号掩码(如下所述)，并调用信号处理程序。对处理程序的调用是这样安排的:如果信号处理例程正常返回，则进程将从信号交付之前在上下文中恢复执行。如果进程希望在不同的上下文中恢复，则必须安排恢复以前的上下文中本身。
+ 
+ 当信号被传递给进程时，在进程的信号处理程序期间(或在调用sigprocmask(2)之前)，将安装一个新的信号掩码。这个掩码是通过将当前信号掩码集、要传递的信号和与要调用的处理程序相关联的信号掩码sa_mask的并集组成的，但始终不包括SIGKILL和SIGSTOP。
+ 
+ 
+ sigaction()为sig指定的信号分配一个动作。如果act是非零的，它指定一个动作(SIG_DFL、SIG_IGN或一个处理程序例程)和掩码，以便在传递指定的信号时使用。如果oact是非零的，则将向用户返回先前处理信号的信息。
+ 
+ 一旦安装了信号处理程序，它通常保持安装状态，直到执行另一个sigaction()调用，或者执行execve(2)。sa_handler的值(或者，如果设置了SA_SIGINFO标志，则改为sa_sigaction的值)指示当信号到达时应该执行什么操作。通过将sa_handler设置为SIG_DFL，可以重置特定于信号的默认操作。另外，如果设置了sa_rese标志，则在首次发出信号时将恢复默认操作。默认值是进程终止，可能带有核心转储;没有行动;停止过程;或者继续这个过程。对于每个信号的默认操作，请参见下面的信号列表。如果sa_handler是SIG_DFL，信号的默认操作是丢弃信号，如果信号是挂起的，即使信号被屏蔽，挂起的信号也会被丢弃。如果将sa_handler设置为SIG_IGN，则会忽略和丢弃信号的当前和挂起实例。如果sig是SIGCHLD，并且sa_handler被设置为SIG_IGN，则会隐含SA_NOCLDWAIT标志(如下所述)。
+ */
+
 #import "CrashReporter.h"
 #import "PLCrashAsync.h"
 #import "PLCrashSignalHandler.h"
@@ -107,10 +122,13 @@ static struct {
 static bool previous_action_callback (int signo, siginfo_t *info, ucontext_t *uap, void *context, PLCrashSignalHandlerCallback *nextHandler) {
     bool handled = false;
 
-    /* Let any additional handler execute */
+    /* Let any additional handler execute 如果在PLC注册信号之前，进程内已经有别的handler注册了该信号，那么此处也会递归的调用这些handler*/
     if (PLCrashSignalHandlerForward(nextHandler, signo, info, uap))
         return true;
 
+    /*
+     遍历previous_actions的List，如果信号类型能比对上，则调用之前注册时设置的sa_sigaction函数。这里可以对应最初保存别的SDK注册信号的处理：
+     */
     shared_handler_context.previous_actions.set_reading(true); {
         /* Find the first matching handler */
         async_list<plcrash_signal_handler_action>::node *next = NULL;
@@ -119,6 +137,9 @@ static bool previous_action_callback (int signo, siginfo_t *info, ucontext_t *ua
             if (next->value().signo != signo)
                 continue;
 
+            /*
+             需要注意的是，遍历的时候，只要信号类型（比如SIGABRT）对的上，那么就去找sa_flags对应的标记，如果你注册的是sigaction的sa_sigaction那么回调这个，如果注册的是sa_handler，则对应进行回调。SIG_IGN表示忽略则不进行额外处理，SIGDFL是一个空函数
+             */
             /* Found a match */
             // TODO - Should we handle the other flags, eg, SA_RESETHAND, SA_ONSTACK? */
             if (next->value().action.sa_flags & SA_SIGINFO) {
@@ -141,7 +162,7 @@ static bool previous_action_callback (int signo, siginfo_t *info, ucontext_t *ua
                     handled = true;
                 }
             }
-            
+            //不管怎样，只要找到一个handler处理完毕后就直接break跳出循环了。
             /* Handler was found; iteration done */
             break;
         }
@@ -158,8 +179,11 @@ static bool internal_callback_iterator (int signo, siginfo_t *info, ucontext_t *
     /* Call the next handler in the chain. If this is the last handler in the chain, pass it the original signal
      * handlers. */
     bool handled = false;
+    //对静态全局变量的callbacks的List进行遍历
     shared_handler_context.callbacks.set_reading(true); {
+        //prev指向context。第一次context是外部传入的NULL
         async_list<plcrash_signal_user_callback>::node *prev = (async_list<plcrash_signal_user_callback>::node *) context;
+        //当next()函数传入NULL,会返还链表头指针.所以current初始值是list的头结点
         async_list<plcrash_signal_user_callback>::node *current = shared_handler_context.callbacks.next(prev);
 
         /* Check for end-of-list */
@@ -195,9 +219,8 @@ static bool internal_callback_iterator (int signo, siginfo_t *info, ucontext_t *
  * @param uapVoid A ucontext_t pointer argument.
  */
 void plcrash_signal_handler (int signo, siginfo_t *info, void *uapVoid) {
-    /* Start iteration; we currently re-raise the signal if not handled by callbacks; this should be revisited
+    /* Start iteration; we currently re-raise the signal if not handled by callbacks; this should be revisited 如果崩溃发生时，callbacks的List里，没有任何人来处理这个收到的信号，则会重新把该信号抛出来
      * in the future, as the signal may not be raised on the expected thread.
-     开始迭代;如果不通过回调处理，则当前重新引发信号;这应该在将来重新访问，因为信号可能不会在预期的线程上发出。
      */
     if (!internal_callback_iterator(signo, info, (ucontext_t *) uapVoid, NULL))
         raise(signo);
@@ -327,6 +350,8 @@ static PLCrashSignalHandler *sharedHandler;
              * which the signal handlers are enabled.
             http://www.groad.net/bbs/forum.php?mod=viewthread&tid=7336
              */
+            //sigaltstack()允许用户定义一个备用堆栈，在此堆栈上处理传递给该线程的信号 只有成功返回0
+            // https://man.openbsd.org/sigaltstack.2
             if (sigaltstack(&_sigstk, 0) < 0) {
                 /* This should only fail if we supply invalid arguments to sigaltstack() */
                 plcrash_populate_posix_error(outError, errno, @"Could not initialize alternative signal stack");
@@ -341,6 +366,7 @@ static PLCrashSignalHandler *sharedHandler;
                 .context = NULL
             };
             //而注册函数内部的append函数的操作，其结构体的context是NULL，然后callback是 previous_action_callback，而不是传进来的callback，其是把一个新的结构体，插入到callbacks的List的最后面
+            //这样当信号进入时，previous_action_callback和之前的callback都会被调用
             shared_handler_context.callbacks.nasync_append(sa);
         }
         
@@ -366,7 +392,7 @@ static PLCrashSignalHandler *sharedHandler;
             memset(&sa, 0, sizeof(sa));
             sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
             sigemptyset(&sa.sa_mask);
-            //当信号过来h时，会回调赋值给sa变量的sa_sigaction
+            //sa_sigaction是取了plcrash_signal_handler这个函数的地址.当信号过来时，会回调赋值给sa变量的sa_sigaction
             sa.sa_sigaction = &plcrash_signal_handler;
             
             /* Set new sigaction 注册信号使用的函数sigaction*/

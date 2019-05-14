@@ -148,6 +148,7 @@ static PLCrashReporterCallbacks crashCallbacks = {
  * @param siginfo The signal information.
  *
  * @return Returns PLCRASH_ESUCCESS on success, or an appropriate error value if the report could not be written.
+ * plcrash_write_report是核心，暂停线程，抓线程堆栈信息，写文件和恢复线程都在这个函数里。
  */
 static plcrash_error_t plcrash_write_report (plcrashreporter_handler_ctx_t *sigctx, thread_t crashed_thread, plcrash_async_thread_state_t *thread_state, plcrash_log_signal_info_t *siginfo) {
     plcrash_async_file_t file;
@@ -209,6 +210,7 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
      * could result in incorrect runtime behavior; we should revisit resetting the
      * signal handlers once we address double-fault handling.
      */
+    //函数的第一步更像是一个清理信号的操作？——崩溃信号过来时，清理掉所有信号的注册handler。正常流程也是收集完崩溃日志后就让APP崩溃，留着这些信号handler也没用。
     for (int i = 0; i < monitored_signals_count; i++) {
         struct sigaction sa;
         
@@ -219,7 +221,7 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
         sigaction(monitored_signals[i], &sa, NULL);
     }
 
-    /* Extract the thread state */
+    /* Extract the thread state  获取线程状态，去初始化context，然后进行一些BSD和Mach层的信息转换：*/
     // XXX_ARM64 rdar://14970271 -- In the Xcode 5 GM SDK, _STRUCT_MCONTEXT is not correctly
     // defined as _STRUCT_MCONTEXT64 when building for arm64; this requires the pl_mcontext_t
     // cast.
@@ -233,7 +235,7 @@ static bool signal_handler_callback (int signal, siginfo_t *info, pl_ucontext_t 
     signal_info.bsd_info = &bsd_signal_info;
     signal_info.mach_info = NULL;
 
-    /* Write the report */
+    /* Write the report 之后就是去抓取线程堆栈的状态信息然后写文件了，写完文件后去回调用户额外的一个callback，这个callback是main函数里设置好的：*/
     if (plcrash_write_report(sigctx, pl_mach_thread_self(), &thread_state, &signal_info) != PLCRASH_ESUCCESS)
         return false;
 
@@ -592,6 +594,7 @@ static PLCrashReporter *sharedReporter = nil;
         case PLCrashReporterSignalHandlerTypeBSD://BSD层
             //对信号数组进行遍历，分别给对应的异常信号注册回调和context。context是上方提到的全局静态变量（单例）
             for (size_t i = 0; i < monitored_signals_count; i++) {
+                //注册的时候，取函数signal_handler_callback的地址作为参数传入注册函数，后面崩溃信号来的时候，就会对这个函数进行回调。
                 if (![[PLCrashSignalHandler sharedHandler] registerHandlerForSignal: monitored_signals[i] callback: &signal_handler_callback context: &signal_handler_context error: outError])
                     return NO;
             }

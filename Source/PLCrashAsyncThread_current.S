@@ -93,14 +93,20 @@ pushfq
 popq    %rcx
 movq    %rcx, 152(%rsp)
 
-MOVQ    (cs, 160);
-MOVQ    (fs, 168);
-MOVQ    (gs, 176);
+/* The segment registers are 16 bit. Zero out the rest */
+/* Do this by moving it to a 64 bit register and then to memory. */
+/* The move to via the 64 bit register will automatically clear out the bits */
+movq    %cs, %rcx
+movq    %rcx, 160(%rsp)
+movq    %fs, %rcx
+movq   %rcx, 168(%rsp)
+movq    %gs, %rcx
+movq   %rcx, 176(%rsp)
 
 /* Move mctx to 3rd argument of plcrash_log_writer_write_curthread_stub */
 movq    %rsp, %rdx
 
-xorb	%al, %al
+xorb    %al, %al
 callq    SYM(plcrash_async_thread_state_current_stub)
 
 addq    $720, %rsp
@@ -146,11 +152,18 @@ movl    %eax, 48+OFF(%esp)
 movl    0x4(%ebp), %eax
 movl    %eax, 52+OFF(%esp)
 
-MOVL    (cs, 56);
-MOVL    (ds, 60);
-MOVL    (es, 64);
-MOVL    (fs, 68);
-MOVL    (gs, 72);
+/* The segment registers are 16 bit. Zero out the rest */
+xorl %eax, %eax
+movl %cs, %eax
+movl %eax, OFF+56(%esp);
+movl %ds, %eax
+movl %eax, OFF+60(%esp);
+movl %es, %eax
+movl %eax, OFF+64(%esp);
+movl %fs, %eax
+movl %eax, OFF+68(%esp);
+movl %gs, %eax
+movl %eax, OFF+72(%esp);
 #undef MOVL
 
 /* Set up our argument stack: writer (arg0), image_list, file, siginfo, mctx */
@@ -232,9 +245,9 @@ ldr     x1, [sp, #24];
 mov     x2, sp
 
 bl      SYM(plcrash_async_thread_state_current_stub)
-add	sp, fp, 0
-ldp	fp, lr, [sp], #16
-ret	lr
+add    sp, fp, 0
+ldp    fp, lr, [sp], #16
+ret    lr
 
 #elif defined(__arm__)
 .arm
@@ -293,3 +306,4 @@ pop     {r7, pc}
 #error Unsupported Platform
 
 #endif
+
