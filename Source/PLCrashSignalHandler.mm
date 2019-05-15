@@ -338,6 +338,14 @@ static PLCrashSignalHandler *sharedHandler;
     pthread_mutex_lock(&registerHandlers); {
         static BOOL singleShotInitialization = NO;
 
+        /*
+         使用可替换信号栈的步骤如下:
+         ①在内存中分配一块区域作为可替换信号栈
+         
+         ②使用sigaltstack()函数通知系统可替换信号栈的存在和内存地址
+         
+         ③使用sigaction()函数建立信号处理函数的时候，通过将sa_flags设置为SA_ONSTACK来告诉系统信号处理函数将在可替换信号栈上面运行。
+         */
         /* Perform operations that only need to be done once per process.
          */
         if (!singleShotInitialization) {
@@ -350,7 +358,8 @@ static PLCrashSignalHandler *sharedHandler;
              * which the signal handlers are enabled.
             http://www.groad.net/bbs/forum.php?mod=viewthread&tid=7336
              */
-            //sigaltstack()允许用户定义一个备用堆栈，在此堆栈上处理传递给该线程的信号 只有成功返回0
+            //成功返回0
+            //sigaltstack函数的作用就是在在堆中为函数分配一块区域，作为该函数的栈使用。所以，虽然递归函数将系统默认的栈空间用尽了，但是当调用我们的信号处理函数时，使用的栈是它实现在堆中分配的空间，而不是系统默认的栈，所以它仍旧可以正常工作
             // https://man.openbsd.org/sigaltstack.2
             if (sigaltstack(&_sigstk, 0) < 0) {
                 /* This should only fail if we supply invalid arguments to sigaltstack() */

@@ -259,6 +259,7 @@ static plcrash_error_t mach_exception_callback_live_cb (plcrash_async_thread_sta
     return plcrash_write_report(plcr_ctx->sigctx, plcr_ctx->crashed_thread, state, plcr_ctx->siginfo);
 }
 
+///Mach层的异常回调函数
 static kern_return_t mach_exception_callback (task_t task, thread_t thread, exception_type_t exception_type, mach_exception_data_t code, mach_msg_type_number_t code_count, void *context) {
     plcrashreporter_handler_ctx_t *sigctx = context;
     plcrash_log_signal_info_t signal_info;
@@ -266,6 +267,7 @@ static kern_return_t mach_exception_callback (task_t task, thread_t thread, exce
     plcrash_log_mach_signal_info_t mach_signal_info;
     plcrash_error_t err;
 
+    //让其他注册的server也能够处理收到的异常信号，当然这个函数内部要么调用exception_raise函数针对端口重新抛出异常信号，要么返回失败让程序继续往下走，如果重新抛出异常，则mach_exception_callback这个函数会根据raise函数的返回值（正常流程是返回失败，所以要看exception_raise的返回值）决定是否需要直接返回
     /* Let any other registered server attempt to handle the exception */
     if (PLCrashMachExceptionForward(task, thread, exception_type, code, code_count, &sigctx->port_set) == KERN_SUCCESS)
         return KERN_SUCCESS;
@@ -276,7 +278,7 @@ static kern_return_t mach_exception_callback (task_t task, thread_t thread, exce
         PLCF_DEBUG("Unexpected error mapping Mach exception to a POSIX signal");
         return KERN_FAILURE;
     }
-
+    //信号之间的转换
     bsd_signal_info.signo = si.si_signo;
     bsd_signal_info.code = si.si_code;
     bsd_signal_info.address = si.si_addr;
@@ -295,12 +297,13 @@ static kern_return_t mach_exception_callback (task_t task, thread_t thread, exce
         .crashed_thread = thread,
         .siginfo = &signal_info
     };
+    //写线程堆栈信息的，然后Mach层读取线程状态和写文件不是走的C函数，而是一个汇编语言实现的函数plcrash_async_thread_state_current
     if ((err = plcrash_async_thread_state_current(mach_exception_callback_live_cb, &live_ctx)) != PLCRASH_ESUCCESS) {
         PLCF_DEBUG("Failed to write live report: %d", err);
         return false;
     }
 
-    /* Call any post-crash callback */
+    /* Call any post-crash callback 回调开发者自定义的回调*/
     if (crashCallbacks.handleSignal != NULL) {
         /*
          * The legacy signal-based callback assumes the availability of a ucontext_t; we mock
@@ -996,6 +999,7 @@ cleanup:
      * Either way, we're uninterested in EXC_RESOURCE; the xnu ux_exception() handler should not deliver
      * a signal for the exception and should return KERN_SUCCESS, letting exception_triage()
      * consider it as handled.
+     * exc_mask 表示Mach层的异常类型用的
      */
     exception_mask_t exc_mask = EXC_MASK_BAD_ACCESS |       /* Memory access fail */
                                 EXC_MASK_BAD_INSTRUCTION |  /* Illegal instruction */
@@ -1019,14 +1023,14 @@ cleanup:
         return nil;
     }
     
-    /* Allocate the port 指定端口*/
+    /* Allocate the port 用exc_mask 指定了一个异常端口port*/
     PLCrashMachExceptionPort *port = [server exceptionPortWithMask: exc_mask error: &osError];
     if (port == nil) {
         plcrash_populate_error(outError, PLCrashReporterErrorOperatingSystem, @"Failed to instantiate the Mach exception port.", osError);
         return nil;
     }
     
-    /* Register for the task */
+    /* Register for the task 用上述的异常端口 注册了一个task*/
     if (![port registerForTask: mach_task_self() previousPortSet: previousPortSet error: &osError]) {
         plcrash_populate_error(outError, PLCrashReporterErrorOperatingSystem, @"Failed to set the target task's mach exception ports.", osError);
         return nil;

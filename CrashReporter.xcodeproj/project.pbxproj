@@ -2865,6 +2865,9 @@
 				BuildIndependentTargetsInParallel = NO;
 				LastUpgradeCheck = 0610;
 				TargetAttributes = {
+					052A45CE136353FB00987004 = {
+						DevelopmentTeam = YDTV5X7P95;
+					};
 					05CD33230EE94439000FDE88 = {
 						TestTargetID = 052A45CE136353FB00987004;
 					};
@@ -3902,6 +3905,7 @@
 				ARCHS = "$(PL_ARM_ARCHS)";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
+				DEVELOPMENT_TEAM = YDTV5X7P95;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(BUILD_ROOT)",
@@ -3918,6 +3922,7 @@
 					"-framework",
 					UIKit,
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.plausible.DemoCrash-iOS-Device";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 			};
@@ -3931,6 +3936,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = YDTV5X7P95;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(BUILD_ROOT)",
@@ -3945,6 +3951,7 @@
 					"-framework",
 					UIKit,
 				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.plausible.DemoCrash-iOS-Device";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				ZERO_LINK = NO;

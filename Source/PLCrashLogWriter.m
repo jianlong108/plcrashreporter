@@ -487,7 +487,7 @@ plcrash_error_t plcrash_log_writer_init (plcrash_log_writer_t *writer,
 void plcrash_log_writer_set_exception (plcrash_log_writer_t *writer, NSException *exception) {
     assert(writer->uncaught_exception.has_exception == false);
 
-    /* Save the exception data */
+    /* Save the exception data 当系统给OC异常做回调时，拿到writer，把NSException的name和reason还有backtrace这些值写到writer里*/
     writer->uncaught_exception.has_exception = true;
     writer->uncaught_exception.name = strdup([[exception name] UTF8String]);
     writer->uncaught_exception.reason = strdup([[exception reason] UTF8String]);
@@ -1257,7 +1257,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
     if (err != PLCRASH_ESUCCESS)
         return err;
 
-    /* Write the file header */
+    /* Write the file header 写文件头部信息*/
     {
         uint8_t version = PLCRASH_REPORT_FILE_VERSION;
 
@@ -1279,7 +1279,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
         plcrash_writer_write_report_info(file, writer);
     }
 
-    /* System Info */
+    /* System Info 系统消息*/
     {
         time_t timestamp;
         uint32_t size;
@@ -1298,7 +1298,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
         plcrash_writer_write_system_info(file, writer, timestamp);
     }
     
-    /* Machine Info */
+    /* Machine Info 机器信息*/
     {
         uint32_t size;
 
@@ -1310,7 +1310,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
         plcrash_writer_write_machine_info(file, writer);
     }
 
-    /* App info */
+    /* App info APP信息*/
     {
         uint32_t size;
 
@@ -1322,7 +1322,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
         plcrash_writer_write_app_info(file, writer->application_info.app_identifier, writer->application_info.app_version, writer->application_info.app_marketing_version);
     }
     
-    /* Process info */
+    /* Process info 进程信息*/
     {
         uint32_t size;
         
@@ -1340,7 +1340,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
                                           writer->process_info.start_time);
     }
     
-    /* Threads */
+    /* Threads 线程信息*/
     uint32_t thread_number = 0;
     for (mach_msg_type_number_t i = 0; i < thread_count; i++) {
         thread_t thread = threads[i];
@@ -1372,7 +1372,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
         thread_number++;
     }
 
-    /* Binary Images */
+    /* Binary Images 依赖的镜像*/
     for (size_t i = 0; i < plcrash_async_image_list_count(image_list); i++) {
         plcrash_async_macho_t *image = plcrash_async_image_list_get_image(image_list, i);
         uint32_t size;
@@ -1383,7 +1383,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
         plcrash_writer_write_binary_image(file, image);
     }
 
-    /* Exception */
+    /* Exception 如果有额外的OC异常信息，也会把OC的异常信息写入到文件*/
     if (writer->uncaught_exception.has_exception) {
         uint32_t size;
 
@@ -1393,7 +1393,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
         plcrash_writer_write_exception(file, writer, image_list, &findContext);
     }
     
-    /* Signal */
+    /* Signal 写一下信号的信息到日志里*/
     {
         uint32_t size;
         
@@ -1405,7 +1405,7 @@ plcrash_error_t plcrash_log_writer_write (plcrash_log_writer_t *writer,
     
     plcrash_async_symbol_cache_free(&findContext);
     
-    /* Clean up the thread array */
+    /* Clean up the thread array 恢复所有线程让其继续执行，然后一些清理内存和端口的工作*/
     for (mach_msg_type_number_t i = 0; i < thread_count; i++) {
         if (threads[i] != pl_mach_thread_self())
             thread_resume(threads[i]);

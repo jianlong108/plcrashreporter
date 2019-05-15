@@ -55,6 +55,10 @@ bool PLCrashSignalHandlerForward (PLCrashSignalHandlerCallback *next, int signal
 @interface PLCrashSignalHandler : NSObject {
 @private
     /*
+     //SA_ONSTACK: 如果在从当前建立的“可替换信号栈”(old_sigstack)中获取相关信息时设置该标志，那么表示进程当前正在“可替换信号栈”中执行，如果此时试图去建立一个新的“可替换信号栈”，那么会遇到 EPERM (禁止该动作) 的错误
+     
+     //SA_DISABLE:
+     如果在返回的 old_sigstack 中看到此标志，那么说明当前没有已建立的“可替换信号栈”。如果在 sigstack 中指定该标志，那么当前禁止建立“可替换信号栈”
      _STRUCT_SIGALTSTACK
      {
         void            *ss_sp;//栈顶指针
