@@ -342,7 +342,10 @@ static void uncaught_exception_handler (NSException *exception) {
     /* Set the uncaught exception */
     plcrash_log_writer_set_exception(&signal_handler_context.writer, exception);
     //调用之前注册的handler
-    _perviousExceptionHandler(exception);
+    if (_perviousExceptionHandler != NULL)
+    {
+        _perviousExceptionHandler(exception);
+    }
     /* Synchronously trigger the crash handler */
     abort();
 }
