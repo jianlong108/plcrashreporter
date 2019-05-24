@@ -28,6 +28,9 @@
 
 #import <Foundation/Foundation.h>
 
+/**
+ OC对象。符号量信息类--Binary images：名称，起始地址，结束地址
+ */
 @interface PLCrashReportSymbolInfo : NSObject {
 @private
     /** The symbol name. */

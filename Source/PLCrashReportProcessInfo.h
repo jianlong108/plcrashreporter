@@ -30,6 +30,10 @@
 
 #import <Foundation/Foundation.h>
 
+
+/**
+ oc对象，进程相关信息：进程名称，进程ID，进程所属路径，进程开启时间，父进程名称，父进程ID，是否native
+ */
 @interface PLCrashReportProcessInfo : NSObject {
 @private
     /** Process name, or nil if unavailable. */

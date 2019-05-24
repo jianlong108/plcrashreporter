@@ -28,6 +28,9 @@
 
 #import <Foundation/Foundation.h>
 
+/**
+ oc类，崩溃线程上寄存器信息
+ */
 @interface PLCrashReportRegisterInfo : NSObject {
 @private
     /** Register name */

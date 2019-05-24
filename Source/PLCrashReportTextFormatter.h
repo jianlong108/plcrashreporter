@@ -46,6 +46,9 @@ typedef enum {
 } PLCrashReportTextFormat;
 
 
+/**
+ oc对象，生成报告时的文本格式
+ */
 @interface PLCrashReportTextFormatter : NSObject <PLCrashReportFormatter> {
 @private
     /** Text output format. */

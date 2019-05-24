@@ -29,6 +29,9 @@
 #import <Foundation/Foundation.h>
 #import "PLCrashReportProcessorInfo.h"
 
+/**
+ oc类：二进制镜像相关信息:binary images  处理器类型（arm64），基地址，镜像大小，镜像名称，是否含有UUID，UUID（128位）
+ */
 @interface PLCrashReportBinaryImageInfo : NSObject {
 @private
     /** Code type */

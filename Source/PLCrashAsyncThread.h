@@ -98,7 +98,7 @@ typedef _STRUCT_MCONTEXT pl_mcontext_t;
 #endif
 
 /**
- * Stack growth direction.
+ * Stack growth direction. 栈增长方向
  */
 typedef enum {
     /** The stack grows upwards on this platform. */

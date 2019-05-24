@@ -28,6 +28,10 @@
 
 #import <Foundation/Foundation.h>
 
+
+/**
+ oc对象。mache异常相关信息：mach异常类型，一组 异常码
+ */
 @interface PLCrashReportMachExceptionInfo : NSObject {
 @private
     /** The Mach exception type. */

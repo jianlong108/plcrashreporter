@@ -139,6 +139,9 @@ typedef NS_OPTIONS(NSUInteger, PLCrashReporterSymbolicationStrategy) {
     PLCrashReporterSymbolicationStrategyAll = (PLCrashReporterSymbolicationStrategySymbolTable|PLCrashReporterSymbolicationStrategyObjC)
 };
 
+/**
+ OC类  配置信息：信号捕捉的类型，符号化的策略
+ */
 @interface PLCrashReporterConfig : NSObject {
 @private
     /** The configured signal handler type. */

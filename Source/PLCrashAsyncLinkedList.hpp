@@ -54,7 +54,7 @@ template <typename V>
 class async_list {
 public:
     /**
-     * Async-safe image list element.
+     * Async-safe image list element. 内部类，c++语法
      */
     class node {
     public:

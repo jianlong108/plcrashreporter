@@ -100,6 +100,10 @@ PLCR_EXTERNAL_DEPRECATED_NOWARN_PUSH();
 extern PLCrashReportArchitecture PLCrashReportHostArchitecture PLCR_EXTERNAL_DEPRECATED;
 PLCR_EXTERNAL_DEPRECATED_NOWARN_PUSH();
 
+
+/**
+ oc对象。系统相关信息：设备的操作系统eg:ios,系统版本号，系统build，当前设备的架构信息，崩溃报告生成的时间，进程信息
+ */
 @interface PLCrashReportSystemInfo : NSObject {
 @private
     /** Operating system */

@@ -31,6 +31,9 @@
 #import "PLCrashReportStackFrameInfo.h"
 #import "PLCrashReportRegisterInfo.h"
 
+/**
+ oc类：崩溃报告中的线程相关信息：线程num，线程上的堆栈，当前线程是否为崩溃堆栈，PLCrashReportRegister列表
+ */
 @interface PLCrashReportThreadInfo : NSObject {
 @private
     /** The thread number. Should be unique within a given crash log. */

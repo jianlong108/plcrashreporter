@@ -29,6 +29,9 @@
 #import <Foundation/Foundation.h>
 #import "PLCrashReportSymbolInfo.h"
 
+/**
+ oc对象，堆栈信息类：指令地址，所属的image对应的symbolInfoObject
+ */
 @interface PLCrashReportStackFrameInfo : NSObject {
 @private
     /** Frame instruction pointer. */

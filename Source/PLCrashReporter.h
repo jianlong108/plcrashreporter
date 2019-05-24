@@ -81,6 +81,11 @@ typedef struct PLCrashReporterCallbacks {
     PLCrashReporterPostCrashSignalCallback handleSignal;
 } PLCrashReporterCallbacks;
 
+
+
+/**
+ oc对象：crash 报告生成者
+ */
 @interface PLCrashReporter : NSObject {
 @private
     /** Reporter configuration */

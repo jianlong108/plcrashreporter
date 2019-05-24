@@ -30,6 +30,9 @@
 #import "PLCrashReportThreadInfo.h"
 
 
+/**
+ OC类。异常信息类：异常名称，异常原因，异常堆栈 NSException
+ */
 @interface PLCrashReportExceptionInfo : NSObject {
 @private
     /** Name */

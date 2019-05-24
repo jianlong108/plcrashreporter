@@ -80,8 +80,13 @@ struct PLCrashReportFileHeader {
  */
 typedef struct _PLCrashReportDecoder _PLCrashReportDecoder;
 
+
+/**
+ oc对象  崩溃报告实体类
+ */
 @interface PLCrashReport : NSObject {
 @private
+    //对报告数据做上传时，需要做的解码
     /** Private implementation variables (used to hide the underlying protobuf parser) */
     _PLCrashReportDecoder *_decoder;
 

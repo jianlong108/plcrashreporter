@@ -126,7 +126,7 @@ typedef struct signal_handler_ctx {
  */
 static plcrashreporter_handler_ctx_t signal_handler_context;
 
-static NSUncaughtExceptionHandler *_perviousExceptionHandler;
+static NSUncaughtExceptionHandler *objc_exception_pervious_handler;
 
 /**
  * @internal
@@ -342,9 +342,9 @@ static void uncaught_exception_handler (NSException *exception) {
     /* Set the uncaught exception */
     plcrash_log_writer_set_exception(&signal_handler_context.writer, exception);
     //调用之前注册的handler
-    if (_perviousExceptionHandler != NULL)
+    if (objc_exception_pervious_handler != NULL)
     {
-        _perviousExceptionHandler(exception);
+        objc_exception_pervious_handler(exception);
     }
     /* Synchronously trigger the crash handler */
     abort();
@@ -450,7 +450,7 @@ static PLCrashReporter *sharedReporter = nil;
 /**
  * If an application has a pending crash report, this method returns the crash
  * report data.
- *
+ * 加载未处理的repor为二进制数据NSData。
  * You may use this to submit the report to your own HTTP server, over e-mail, or even parse and
  * introspect the report locally using the PLCrashReport API.
  
@@ -479,7 +479,7 @@ static PLCrashReporter *sharedReporter = nil;
 
 /**
  * Purge a pending crash report.
- *
+ * 清除掉待处理的crash崩溃报告
  * @return Returns YES on success, or NO on error.
  */
 - (BOOL) purgePendingCrashReportAndReturnError: (NSError **) outError {
@@ -656,8 +656,10 @@ static PLCrashReporter *sharedReporter = nil;
     }
 
     /* Set the uncaught exception handler 注册oc的异常处理handler函数*/
-    _perviousExceptionHandler = NSGetUncaughtExceptionHandler();
-    NSSetUncaughtExceptionHandler(&uncaught_exception_handler);
+    objc_exception_pervious_handler = NSGetUncaughtExceptionHandler();
+    if (objc_exception_pervious_handler != uncaught_exception_handler) {
+        NSSetUncaughtExceptionHandler(&uncaught_exception_handler);
+    }
     
     /* Success */
     _enabled = YES;

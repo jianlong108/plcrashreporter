@@ -28,6 +28,9 @@
 
 #import <Foundation/Foundation.h>
 
+/**
+ OC类。信号量实体类：信号名称，信号值，故障指令或地址
+ */
 @interface PLCrashReportSignalInfo : NSObject {
 @private
     /** Signal name */

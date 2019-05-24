@@ -28,6 +28,9 @@
 
 #import <Foundation/Foundation.h>
 
+/**
+ oc对象 应用相关信息：appid，app版本号，app商店版本号
+ */
 @interface PLCrashReportApplicationInfo : NSObject {
 @private
     /** Application identifier */

@@ -60,7 +60,7 @@ using namespace plcrash::async;
  * Manages the internal state for a user-registered callback and context.
  */
 struct plcrash_signal_user_callback {
-    /** Signal handler callback function. */
+    /** Signal handler callback function. 函数指针callback*/
     PLCrashSignalHandlerCallbackFunc callback;
     
     /** Signal handler context. */

@@ -46,6 +46,11 @@ typedef enum {
     PLCrashReportProcessorTypeEncodingMach = 1
 } PLCrashReportProcessorTypeEncoding;
 
+
+
+/**
+ oc对象。处理器信息：类型编码：mach，CPU类型，CPU子类型
+ */
 @interface PLCrashReportProcessorInfo : NSObject {
 @private
     /** Type encoding */

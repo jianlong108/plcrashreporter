@@ -259,6 +259,7 @@ error:
 @implementation PLCrashReport (PrivateMethods)
 
 /**
+ * protobuf解析信息 NSData * -> struct Plcrash__CrashReport *  可以忽略
  * Decode the crash log message.
  *
  * @warning MEMORY WARNING. The caller is responsible for deallocating th ePlcrash__CrashReport instance
@@ -305,8 +306,8 @@ error:
 
 /**
  * Extract system information from the crash log. Returns nil on error.
- *
- * @param systemInfo The system info from the protobuf file.
+ * 从crash 日志中提取系统信息
+ * @param systemInfo The system info from the protobuf file. 来自于protobuf的数据
  * @param processorInfo The system info from the machine info. This may be nil for v1 reports, in which case the
  * information will be synthesized from the architecture in the @a systemInfo.
  * @param outError A pointer to an NSError object variable. If an error occurs, this pointer will contain an error
@@ -365,7 +366,7 @@ error:
 }
 
 /**
- * Extract processor information from the crash log. Returns nil on error.
+ * Extract processor information from the crash log. Returns nil on error. 提取处理器信息
  */
 - (PLCrashReportProcessorInfo *) extractProcessorInfo: (Plcrash__CrashReport__Processor *) processorInfo error: (NSError **) outError {   
     /* Validate */
@@ -382,6 +383,7 @@ error:
 }
 
 /**
+ * 通过架构类型合成一个处理器信息
  * Synthesize a processor information object from an architecture type. Returns nil on error.
  */
 - (PLCrashReportProcessorInfo *) synthesizeProcessorInfoFromArchitecture: (Plcrash__Architecture) architecture error:(NSError **)outError {
@@ -431,6 +433,7 @@ error:
 }
 
 /**
+ * 从crash日志中提取机器信息
  * Extract machine information from the crash log. Returns nil on error.
  */
 - (PLCrashReportMachineInfo *) extractMachineInfo: (Plcrash__CrashReport__MachineInfo *) machineInfo error: (NSError **) outError {
@@ -464,6 +467,7 @@ error:
 }
 
 /**
+ * 从crash日志中提取应用信息
  * Extract application information from the crash log. Returns nil on error.
  */
 - (PLCrashReportApplicationInfo *) extractApplicationInfo: (Plcrash__CrashReport__ApplicationInfo *) applicationInfo 
@@ -511,6 +515,7 @@ error:
 
 
 /**
+ * 从crash日志中提取当前进程的信息
  * Extract process information from the crash log. Returns nil on error.
  */
 - (PLCrashReportProcessInfo *) extractProcessInfo: (Plcrash__CrashReport__ProcessInfo *) processInfo 
@@ -559,6 +564,7 @@ error:
 }
 
 /**
+ * 从crash日志中提取符号信息
  * Extract symbol information from the crash log. Returns nil on error, or a PLCrashReportSymbolInfo
  * instance on success.
  */
@@ -577,6 +583,7 @@ error:
 }
 
 /**
+ * 从crash日志中提取堆栈信息
  * Extract stack frame information from the crash log. Returns nil on error, or a PLCrashReportStackFrameInfo
  * instance on success.
  */
@@ -600,6 +607,7 @@ error:
 }
 
 /**
+ * 从crash日志中提取线程信息
  * Extract thread information from the crash log. Returns nil on error, or an array of PLCrashLogThreadInfo
  * instances on success.
  */
@@ -658,6 +666,7 @@ error:
 
 
 /**
+ * 从crash日志中提取二进制镜像信息
  * Extract binary image information from the crash log. Returns nil on error.
  */
 - (NSArray *) extractImageInfo: (Plcrash__CrashReport *) crashReport error: (NSError **) outError {
@@ -711,6 +720,7 @@ error:
 }
 
 /**
+ * 从crash日志中提取exception像信息
  * Extract  exception information from the crash log. Returns nil on error.
  */
 - (PLCrashReportExceptionInfo *) extractExceptionInfo: (Plcrash__CrashReport__Exception *) exceptionInfo
@@ -768,6 +778,7 @@ error:
 }
 
 /**
+ * 从crash日志中提取signal像信息
  * Extract signal information from the crash log. Returns nil on error.
  */
 - (PLCrashReportSignalInfo *) extractSignalInfo: (Plcrash__CrashReport__Signal *) signalInfo
@@ -805,6 +816,7 @@ error:
 }
 
 /**
+ * 从crash日志中提取Mach exception信息
  * Extract Mach exception information from the crash log. Returns nil on error.
  */
 - (PLCrashReportMachExceptionInfo *) extractMachExceptionInfo: (Plcrash__CrashReport__Signal__MachException *) machExceptionInfo
@@ -840,7 +852,7 @@ error:
 
 /**
  * @internal
- 
+ * 私有类，根据code和描述生成一个error对象
  * Populate an NSError instance with the provided information.
  *
  * @param error Error instance to populate. If NULL, this method returns

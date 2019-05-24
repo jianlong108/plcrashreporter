@@ -36,7 +36,7 @@ typedef struct PLCrashSignalHandlerCallback PLCrashSignalHandlerCallback;
 /**
  * @internal
  * Signal handler callback function
- *
+ * 定义了一个PLCrashSignalHandlerCallbackFunc指针变量，它指向某个函数的指针，这个函数参数是int signo, siginfo_t *info, ucontext_t *uap, void *context, PLCrashSignalHandlerCallback *next)，返回值是bool。
  * @param signo The received signal.
  * @param info The signal info.
  * @param uap The signal thread context.

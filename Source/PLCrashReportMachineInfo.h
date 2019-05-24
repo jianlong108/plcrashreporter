@@ -30,6 +30,9 @@
 
 #import "PLCrashReportProcessorInfo.h"
 
+/**
+ oc对象。当前设备相关信息：设备名称，处理器类型，处理器数量，逻辑处理器数量
+ */
 @interface PLCrashReportMachineInfo : NSObject {
 @private
     /** The hardware model name (eg, MacBookPro6,1). This may be unavailable, and this property will be nil. */
