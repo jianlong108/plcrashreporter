@@ -169,9 +169,23 @@
  * @return YES if the mach exception port state was successfully registered for @a task, NO on error.
  */
 - (BOOL) registerForTask: (task_t) task previousPortSet: (PLCrashMachExceptionPortSet **) ports error: (NSError **) outError {
+    //为task注册新的异常端口，将之前的异常端口保存在结构体prev中
     plcrash_mach_exception_port_set_t prev;
     
     kern_return_t kr;
+    /**
+     Set target task's exception ports, returning the previous exception ports.
+     * @param task_t                                    task,
+     * @param exception_mask_t               exception_types,
+     * @param mach_port_t                     exception_port,
+     * @param exception_behavior_t                  behavior,
+     * @param thread_state_flavor_t                   flavor,
+     * @param exception_mask_array_t     old_exception_masks,
+     * @param old_exception_masks        old_exception_count,
+     * @param exception_port_array_t     old_exception_ports,
+     * @param exception_behavior_array_t       old_behaviors,
+     * @param exception_flavor_array_t           old_flavors);
+     */
     kr = task_swap_exception_ports(task,
                                    _mask,
                                    _port,
@@ -188,6 +202,7 @@
         return NO;
     }
 
+    //通过之前注册的异常端口信息prev 来初始化 PLCrashMachExceptionPortSet对象
     if (ports != NULL)
         *ports = [[[PLCrashMachExceptionPortSet alloc] initWithAsyncSafeRepresentation: prev] autorelease];
 

@@ -1028,14 +1028,14 @@ cleanup:
         return nil;
     }
     
-    /* Allocate the port 用exc_mask 指定了一个异常端口port*/
+    /* Allocate the port 用exc_mask 生成PLCrashMachExceptionPort对象*/
     PLCrashMachExceptionPort *port = [server exceptionPortWithMask: exc_mask error: &osError];
     if (port == nil) {
         plcrash_populate_error(outError, PLCrashReporterErrorOperatingSystem, @"Failed to instantiate the Mach exception port.", osError);
         return nil;
     }
     
-    /* Register for the task 用上述的异常端口 注册了一个task*/
+    /* Register for the task 为task注册异常端口*/
     if (![port registerForTask: mach_task_self() previousPortSet: previousPortSet error: &osError]) {
         plcrash_populate_error(outError, PLCrashReporterErrorOperatingSystem, @"Failed to set the target task's mach exception ports.", osError);
         return nil;

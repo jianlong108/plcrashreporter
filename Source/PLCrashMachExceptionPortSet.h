@@ -64,6 +64,10 @@ typedef struct plcrash_mach_exception_port_set {
     thread_state_flavor_t flavors[EXC_TYPES_COUNT];
 } plcrash_mach_exception_port_set_t;
 
+
+/**
+ 之前注册在task中的异常端口信息
+ */
 @interface PLCrashMachExceptionPortSet : NSObject <NSFastEnumeration> {
 @private
     /** Backing state set representation. */
@@ -76,7 +80,7 @@ typedef struct plcrash_mach_exception_port_set {
 - (id) initWithAsyncSafeRepresentation: (plcrash_mach_exception_port_set_t) asyncSafeRepresentation;
 
 /** The set of PLCrashMachExceptionPortState instances managed by this state set. */
-@property(nonatomic, readonly) NSSet *set;
+@property(nonatomic, readonly) NSSet<PLCrashMachExceptionPort *> *set;
 
 /** The C representation of the port state set. May be used in async-safe code paths. */
 @property(nonatomic, readonly) plcrash_mach_exception_port_set_t asyncSafeRepresentation;
