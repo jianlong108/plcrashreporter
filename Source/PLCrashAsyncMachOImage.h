@@ -141,7 +141,7 @@ typedef struct plcrash_async_macho_symtab_entry {
 
 /**
  * @internal
- *
+ * Mach-O 符号阅读器
  * A Mach-O symtab reader. Provides support for iterating the contents of a Mach-O symbol table.
  */
 typedef struct plcrash_async_macho_symtab_reader {

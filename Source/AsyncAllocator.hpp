@@ -140,10 +140,14 @@ public:
     
     /**
      * @internal
-     *
+     * 计算16的最大公倍数
      * Truncate @a value up to the nearest natural alignment boundary.
-     *
      * @param value the value to be aligned.
+     // natural_alignment() - 1 = 15
+     // 0000 0000 0000 0000 0000 0000 0000 1111
+     // 1111 1111 1111 1111 1111 1111 1111 0000
+     // 1111 1111 1111 1111 1111 1111 1111 0000
+     // eg 3->16 63->64 65->80
      */
     static inline vm_address_t trunc_align (vm_address_t value) {
         return ((value) & (~(natural_alignment() - 1)));
@@ -203,7 +207,7 @@ private:
      * allocation's control block.
      */
     struct control_block {
-        /* Construct a new control block instance */
+        /* Construct a new control block instance 初始化列表 初始对象*/
         control_block (AsyncAllocator *allocator, control_block *next, size_t size) : _allocator(allocator), _next(next), _size(size) {}
         
         /** Pointer back to the containing AsyncAllocator instance. */

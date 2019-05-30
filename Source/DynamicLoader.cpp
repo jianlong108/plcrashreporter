@@ -85,7 +85,7 @@ public:
      * @return On success, returns PLCRASH_ESUCCESS. On failure, one of the plcrash_error_t error values will be returned.
      */
     static plcrash_error_t readImageList (AsyncAllocator *allocator, task_t task, struct task_dyld_info &dyld_info, DynamicLoader::ImageList **image_list) {
-        all_image_infos all_infos;
+        all_image_infos all_infos;//所有镜像的信息
         size_t invalid_info_count;
         size_t image_list_count;
         plcrash_error_t err;

@@ -89,6 +89,7 @@ const plcrash_async_byteorder_t plcrash_async_byteorder_direct = {
 
 /**
  * Return byte order functions that may be used to swap to/from little endian to host byte order.
+ 根据架构的大小端模式，来选择字节序
  */
 extern const plcrash_async_byteorder_t *plcrash_async_byteorder_little_endian (void) {
 #if defined(__LITTLE_ENDIAN__)
@@ -199,7 +200,7 @@ plcrash_error_t plcrash_async_task_memcpy (mach_port_t task, pl_vm_address_t add
     pl_vm_address_t target;
     kern_return_t kt;
 
-    /* Compute the target address and check for overflow */
+    /* Compute the target address and check for overflow 计算出目标地址target*/
     if (!plcrash_async_address_apply_offset(address, offset, &target))
         return PLCRASH_ENOMEM;
 
@@ -208,6 +209,7 @@ plcrash_error_t plcrash_async_task_memcpy (mach_port_t task, pl_vm_address_t add
     kt = mach_vm_read_overwrite(task, target, len, (pointer_t) dest, &read_size);
 #else
     vm_size_t read_size = len;
+    //在指定的task中，从起始地址dest长度read_size的内存区间拷贝到起始地址target长度len的内存区间
     kt = vm_read_overwrite(task, target, len, (pointer_t) dest, &read_size);
 #endif
     
@@ -337,7 +339,7 @@ int plcrash_async_strcmp(const char *s1, const char *s2) {
 /**
  * An intentionally naive async-safe implementation of strncmp(). strncmp() itself is not declared to be async-safe,
  * though in reality, it is.
- *
+ * 线程安全的字符串比较函数  strncmp()自身被申明为非线程安全
  * @param s1 First string.
  * @param s2 Second string.
  * @param n No more than n characters will be compared.

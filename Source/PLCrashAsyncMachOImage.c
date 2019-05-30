@@ -385,16 +385,17 @@ void *plcrash_async_macho_next_command_type (plcrash_async_macho_t *image, void 
  *
  * @return Returns the address of the matching load_command on success, or 0 on failure.
  *
- * @note A returned command is gauranteed to be readable, and fully within mapped address space. If the command
+ * @note A returned command is guaranteed to be readable, and fully within mapped address space. If the command
  * command can not be verified to have available MAX(sizeof(struct load_command), cmd->cmdsize) bytes, NULL will be
  * returned.
  */
 void *plcrash_async_macho_find_command (plcrash_async_macho_t *image, uint32_t expectedCommand) {
     struct load_command *cmd = NULL;
 
+    // 遍历查找匹配的cmd
     /* Iterate commands until we either find a match, or reach the end */
     while ((cmd = plcrash_async_macho_next_command(image, cmd)) != NULL) {
-        /* Read the load command type */
+        /* Read the load command type 通过*/
         if (!plcrash_async_mobject_verify_local_pointer(&image->load_cmds, (uintptr_t) cmd, 0, sizeof(*cmd))) {
             PLCF_DEBUG("Failed to map LC_CMD at address %p in: %s", cmd, image->name);
             return NULL;
@@ -412,7 +413,7 @@ void *plcrash_async_macho_find_command (plcrash_async_macho_t *image, uint32_t e
 
 /**
  * Find a named segment.
- *
+ * 找到段的地址
  * @param image The image to search for @a segname.
  * @param segname The name of the segment to search for.
  *
@@ -421,6 +422,12 @@ void *plcrash_async_macho_find_command (plcrash_async_macho_t *image, uint32_t e
 void *plcrash_async_macho_find_segment_cmd (plcrash_async_macho_t *image, const char *segname) {
     void *seg = NULL;
 
+    /**
+     (深入解析MacOSX...page 99）
+     命令：LC_SEGMENT_64和LC_SEGMENT 作用：将文件中（32位或64位）的段映射到进程地址空间中
+     这条命令是最主要的加载命令，指导内核如何设置新运行的进程的内存空间。这些段直接从Mach-o二进制文件加载到内存中
+     __pageZero 4MB
+     */
     while ((seg = plcrash_async_macho_next_command_type(image, seg, image->m64 ? LC_SEGMENT_64 : LC_SEGMENT)) != 0) {
 
         /* Read the load command */
@@ -626,7 +633,7 @@ plcrash_error_t plcrash_async_macho_find_symbol_by_name (plcrash_async_macho_t *
 
 /**
  * Initialize a new symbol table reader, mapping the LINKEDIT segment from @a image into the current process.
- *
+ * 初始化一个符号表阅读器，匹配LINKEDIT段，从当前进程中的镜像文件
  * @param reader The reader to be initialized.
  * @param image The image from which the symbol table will be mapped.
  *

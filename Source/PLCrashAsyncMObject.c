@@ -110,7 +110,7 @@ static plcrash_error_t plcrash_async_mobject_remap_pages_workaround (mach_port_t
 {
     kern_return_t kt;
 
-    /* Compute the total required page size. */
+    /* Compute the total required page size. 将需要的内存大小进行页对齐*/
     pl_vm_address_t base_addr = mach_vm_trunc_page(task_addr);
     pl_vm_size_t total_size = mach_vm_round_page(length + (task_addr - base_addr));
     
@@ -166,6 +166,8 @@ static plcrash_error_t plcrash_async_mobject_remap_pages_workaround (mach_port_t
 #ifdef PL_HAVE_MACH_VM
     kt = mach_vm_allocate(mach_task_self(), &mapping_addr, total_size, VM_FLAGS_ANYWHERE);
 #else
+    //mach_task_self()：在自己的进程空间内申请大小为total_size的内存空间，分配的地址为mapping_addr指向
+    //VM_FLAGS_ANYWHERE 表示可以接受任意位置的内存分配
     kt = vm_allocate(mach_task_self(), &mapping_addr, total_size, VM_FLAGS_ANYWHERE);
 #endif
 
@@ -242,16 +244,17 @@ static plcrash_error_t plcrash_async_mobject_remap_pages_workaround (mach_port_t
 /**
  * Initialize a new memory object reference, mapping @a task_addr from @a task into the current process. The mapping
  * will be copy-on-write, and will be checked to ensure a minimum protection value of VM_PROT_READ.
- *
+ * 初始化一个内存对象引用，从mach层的任务地址映射到当前进程。
  * @param mobj Memory object to be initialized.
- * @param task The task from which the memory will be mapped.
- * @param task_addr The task-relative address of the memory to be mapped. This is not required to fall on a page boundry.
- * @param length The total size of the mapping to create.
+ * @param task The task from which the memory will be mapped.将要被映射地址的进程
+ * @param task_addr The task-relative address of the memory to be mapped. This is not required to fall on a page boundry. 任务地址（虚拟地址）
+ * @param length The total size of the mapping to create.映射工作需要去创建的内存大小
  * @param require_full If false, short mappings will be permitted in the case where a memory object of the requested length
  * does not exist at the target address. It is the caller's responsibility to validate the resulting length of the
  * mapping, eg, using plcrash_async_mobject_remap_address() and similar. If true, and the entire requested page range is
  * not valid, the mapping request will fail.
- *
+ *如果为false，在目标地址不存在于请求长度的内存对象的情况下，将允许短映射。调用者有责任验证映射的结果长度，例如，使用plcrash_async_mobject_remap_address()和类似的方法。
+ 如果为真，且整个请求页面范围无效，则映射请求将失败。
  * @return On success, returns PLCRASH_ESUCCESS. On failure, one of the plcrash_error_t error values will be returned, and no
  * mapping will be performed.
  */
@@ -317,33 +320,33 @@ task_t plcrash_async_mobject_task (plcrash_async_mobject_t *mobj) {
 /**
  * Verify that @a length bytes starting at local @a address is within @a mobj's mapped range.
  *
- * @param mobj An initialized memory object.
- * @param address An address within the current task's memory space.
- * @param offset An offset to be applied to @a address prior to verifying the address range.
+ * @param mobj An initialized memory object. 内存对象
+ * @param address An address within the current task's memory space.当前任务的内存空间中的地址
+ * @param offset An offset to be applied to @a address prior to verifying the address range.虚拟内存空间中的偏移量
  * @param length The number of bytes that should be readable at @a address + @a offset.
  */
 bool plcrash_async_mobject_verify_local_pointer (plcrash_async_mobject_t *mobj, uintptr_t address, pl_vm_off_t offset, size_t length) {
-    /* Verify that the offset value won't overrun a native pointer */
+    /* Verify that the offset value won't overrun a native pointer 校验偏移量的合法性*/
     if (offset > 0 && UINTPTR_MAX - offset < address) {
         return false;
     } else if (offset < 0 && (offset * -1) > address) {
         return false;
     }
 
-    /* Adjust the address using the verified offset */
+    /* Adjust the address using the verified offset 基地址+偏移量 = 地址*/
     address += offset;
 
-    /* Verify that the address starts within range */
+    /* Verify that the address starts within range 当前地址小于当前内存对象的地址(最小地址)，匹配失败*/
     if (address < mobj->address) {
         // PLCF_DEBUG("Address %" PRIx64 " < base address %" PRIx64 "", (uint64_t) address, (uint64_t) mobj->address);
         return false;
     }
 
-    /* Verify that the address value won't overrun */
+    /* Verify that the address value won't overrun 当前地址超过进程访问的最大地址 匹配失败*/
     if (UINTPTR_MAX - length < address)
         return false;
     
-    /* Check that the block ends within range */
+    /* Check that the block ends within range 内存对象占用的最大地址 小于 待判断的最大地址 匹配失败*/
     if (mobj->address + mobj->length < address + length) {
         // PLCF_DEBUG("Address %" PRIx64 " out of range %" PRIx64 " + %" PRIx64, (uint64_t) address, (uint64_t) mobj->address, (uint64_t) mobj->length);
         return false;
@@ -364,7 +367,7 @@ bool plcrash_async_mobject_verify_local_pointer (plcrash_async_mobject_t *mobj, 
  * @return Returns the validated pointer, or NULL if the requested bytes are not within @a mobj's range.
  */
 void *plcrash_async_mobject_remap_address (plcrash_async_mobject_t *mobj, pl_vm_address_t address, pl_vm_off_t offset, size_t length) {
-    /* Map into our memory space */
+    /* Map into our memory space 虚拟地址 - 偏移量 = 可执行文件中的内存地址*/
     pl_vm_address_t remapped = address - mobj->vm_slide;
 
     if (!plcrash_async_mobject_verify_local_pointer(mobj, (uintptr_t) remapped, offset, length))
