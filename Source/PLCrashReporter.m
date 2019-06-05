@@ -126,7 +126,9 @@ typedef struct signal_handler_ctx {
  */
 static plcrashreporter_handler_ctx_t signal_handler_context;
 
-static NSUncaughtExceptionHandler *objc_exception_pervious_handler;
+static void _interal_uncaught_exception_handler (NSException *exception);
+
+static NSUncaughtExceptionHandler *_objc_exception_pervious_handler = _interal_uncaught_exception_handler;
 
 /**
  * @internal
@@ -338,13 +340,13 @@ static kern_return_t mach_exception_callback (task_t task, thread_t thread, exce
  * XXX: It is possible that another crash may occur between setting the uncaught 
  * exception field, and triggering the signal handler.
  */
-static void uncaught_exception_handler (NSException *exception) {
+static void _interal_uncaught_exception_handler (NSException *exception) {
     /* Set the uncaught exception */
     plcrash_log_writer_set_exception(&signal_handler_context.writer, exception);
     //调用之前注册的handler
-    if (objc_exception_pervious_handler != NULL)
+    if (_objc_exception_pervious_handler != NULL && _objc_exception_pervious_handler != _interal_uncaught_exception_handler)
     {
-        objc_exception_pervious_handler(exception);
+        _objc_exception_pervious_handler(exception);
     }
     /* Synchronously trigger the crash handler */
     abort();
@@ -656,9 +658,9 @@ static PLCrashReporter *sharedReporter = nil;
     }
 
     /* Set the uncaught exception handler 注册oc的异常处理handler函数*/
-    objc_exception_pervious_handler = NSGetUncaughtExceptionHandler();
-    if (objc_exception_pervious_handler != uncaught_exception_handler) {
-        NSSetUncaughtExceptionHandler(&uncaught_exception_handler);
+    _objc_exception_pervious_handler = NSGetUncaughtExceptionHandler();
+    if (_objc_exception_pervious_handler != _interal_uncaught_exception_handler) {
+        NSSetUncaughtExceptionHandler(_interal_uncaught_exception_handler);
     }
     
     /* Success */
