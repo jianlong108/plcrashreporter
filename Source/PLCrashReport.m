@@ -343,8 +343,19 @@ error:
         osBuild = [NSString stringWithUTF8String: systemInfo->os_build];
     
     /* Set up the timestamp, if available */
-    if (systemInfo->timestamp != 0)
-        timestamp = [NSDate dateWithTimeIntervalSince1970: systemInfo->timestamp];
+    if (systemInfo->timestamp != 0) {
+        NSDate *date = [NSDate dateWithTimeIntervalSince1970: systemInfo->timestamp];
+        NSDate *beijingDate = [date dateByAddingTimeInterval:8 * 60 * 60];
+//        NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+//        NSTimeZone *timeZone = [NSTimeZone timeZoneWithAbbreviation:@"GMT+0800"];
+//        [dateFormatter setTimeZone:timeZone];
+//        [dateFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
+//        NSString *dateString = [dateFormatter stringFromDate:date];
+//        timestamp = [dateFormatter dateFromString:dateString];
+        NSLog(@"北京时间 %@",beijingDate);
+        timestamp = beijingDate;
+    }
+    
 
 	/* v1 crash logs will not have machine info, so the only data available to
 	 * us is the deprecated architecture field. From that we will generate a
